@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="http://moise.sourceforge.net/xml/os.xsl" type="text/xsl" ?>
+<organisational-specification
+    id="lab_monitoring_org"
+    os-version="0.8"
+    xmlns='http://moise.sourceforge.net/os'
+    xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+    xsi:schemaLocation='http://moise.sourceforge.net/os
+                        http://moise.sourceforge.net/xml/os.xsd'>
+    <structural-specification>
+        <role-definitions>
+          <role id="temperature_reader"></role>
+          <role id="temperature_manifestor"></role>
+        </role-definitions>
+        <group-specification id="monitoring_team">
+            <roles>
+                <role id="temperature_reader" min="1" max="1" />
+                <role id="temperature_manifestor" min="1" max="1" />
+            </roles>
+            <formation-constraints>
+            </formation-constraints>
+        </group-specification>
+    </structural-specification>
+    <functional-specification>
+        <scheme id="monitoring_scheme" >
+            <goal id="monitor_temperature" ttf="360">
+                <plan operator="sequence" >
+                    <goal id="read_temperature" ds="Read outside air temperature"/>
+                    <goal id="manifest_temperature" ds="Manifest outside air temperature"/>
+                </plan>
+            </goal>
+            <mission id="temperature_reading_mission" min="1" max="1">
+                 <goal id="read_temperature"/>
+            </mission>
+            <mission id="temperature_manifesting_mission" min="1" max="1">
+                 <goal id="manifest_temperature"/>
+            </mission>
+        </scheme>
+    </functional-specification>
+    <normative-specification>
+        <norm id="temperature_reading_norm"
+          type="obligation"
+          role="temperature_reader"
+        	mission="temperature_reading_mission"
+          time-constraint="15"/>
+        <norm id="temperature_manifesting_norm"
+          type="obligation"
+          role="temperature_manifestor"
+        	mission="temperature_manifesting_mission"
+          time-constraint="15"/>
+    </normative-specification>
+</organisational-specification>
