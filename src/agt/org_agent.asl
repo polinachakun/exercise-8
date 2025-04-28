@@ -16,7 +16,33 @@ sch_name("monitoring_scheme"). // the agent beliefs that it can manage schemes w
 */
 @start_plan
 +!start : org_name(OrgName) & group_name(GroupName) & sch_name(SchemeName) <-
-  .print("Hello world").
+	.print("Initializing organization: ", OrgName);
+  
+	createWorkspace(OrgName);
+	joinWorkspace(OrgName, OrgWsp);
+	
+  makeArtifact(OrgName, "ora4mas.nopl.OrgBoard", ["src/org/org-spec.xml"], OrgBoardId)[wid(OrgWsp)];
+  focus(OrgBoardId)[wid(OrgWsp)];
+  .print("Organization Board created with ID: ", OrgBoardId);
+	
+	createGroup(GroupName, "monitoring_team", GroupId)[artifact_id(OrgBoardId)];
+	focus(GroupId)[wid(OrgWsp)];
+	.print("Group Board created with ID: ", GroupId);
+	
+	createScheme(SchemeName, "monitoring_scheme", SchemeId)[artifact_id(OrgBoardId)];
+	focus(SchemeId)[wid(OrgWsp)];
+	.print("Scheme Board created with ID: ", SchemeId);
+	
+	.broadcast(tell, organization_ready(OrgName));
+	.print("Broadcasted that organization workspace ", OrgName, " is available");
+	
+	?formationStatus(ok)[artifact_id(GroupId)];
+	.print("Group ", GroupName, " is now well-formed");
+	
+	addResponsibleGroup(GroupName)[artifact_id(SchemeId)];
+	.print("Made group ", GroupName, " responsible for scheme ", SchemeName);
+	
+	!inspect(GroupId).
 
 /* 
  * Plan for reacting to the addition of the test-goal ?formationStatus(ok)
