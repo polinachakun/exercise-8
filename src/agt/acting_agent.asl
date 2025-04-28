@@ -4,6 +4,14 @@
 // that describes a Thing of type https://ci.mines-stetienne.fr/kg/ontology#PhantomX
 robot_td("https://raw.githubusercontent.com/Interactions-HSG/example-tds/main/tds/leubot1.ttl").
 
+/* Initial beliefs and rules */
+// Keep track of roles already adopted
+adopted_role(none).
+// Keep track of workspaces joined
+joined_workspace(main). 
+// Keep track of roles already adopted
+adopted_role(none).
+
 /* Initial goals */
 !start. // the agent has the goal to start
 
@@ -44,6 +52,56 @@ robot_td("https://raw.githubusercontent.com/Interactions-HSG/example-tds/main/td
 
 	// invokes the action onto:SetWristAngle for manifesting the temperature with the wrist of the robotic arm
 	invokeAction("https://ci.mines-stetienne.fr/kg/ontology#SetWristAngle", ["https://www.w3.org/2019/wot/json-schema#IntegerSchema"], [Degrees])[artifact_id(Leubot1Id)].
+
+
+@role_available_plan
++role_available(Role, OrgName) : adopted_role(none) | adopted_role(Role) <-
+    .print("Role ", Role, " is available in organization ", OrgName, ". Checking...");
+    
+    // Join the organization workspace only if not already joined
+    if (not joined_workspace(OrgName)) {
+        joinWorkspace(OrgName, OrgWsp);
+        +joined_workspace(OrgName);
+        .print("Joined workspace: ", OrgName);
+    } else {
+        .print("Already joined workspace: ", OrgName);
+    }
+    
+    lookupArtifact(OrgName, OrgBoardId)[wid(OrgWsp)];
+    focus(OrgBoardId)[wid(OrgWsp)];
+    .print("Focused on Organization Board: ", OrgBoardId);
+    
+    // Find and focus on Group Board and Scheme Board
+    for (group(GroupName, _, GroupBoardId)[artifact_id(OrgBoardId)]) {
+        focus(GroupBoardId)[wid(OrgWsp)];
+        .print("Focused on Group Board: ", GroupBoardId, " for group ", GroupName);
+        
+        if (adopted_role(none)) {
+            .print("Adopting role: ", Role);
+            adoptRole(Role)[artifact_id(GroupBoardId)];
+            -+adopted_role(Role); 
+            .print("Adopted role: ", Role, " in group ", GroupName);
+        }
+    }
+    
+    // Focus on scheme board
+    for (scheme(SchemeName, _, SchemeBoardId)[artifact_id(OrgBoardId)]) {
+        focus(SchemeBoardId)[wid(OrgWsp)];
+        .print("Focused on Scheme Board: ", SchemeBoardId, " for scheme ", SchemeName);
+    }.
+
+// Ignore role availability messages if a different role was already adopted 
+@role_available_other_plan
++role_available(Role, OrgName) : adopted_role(CurrentRole) & CurrentRole \== none & CurrentRole \== Role <-
+    .print("Ignoring role ", Role, " as I've already adopted role ", CurrentRole).
+
+
+@obligation_achieved_plan
++obligation(Ag,Norm,what(achieved(Scheme,Goal,Ag)),Deadline)[artifact_id(ArtId)] : .my_name(Ag) <-
+    .print("I am obliged to achieve goal ", Goal, " in scheme ", Scheme);
+    !Goal[scheme(Scheme)];
+    .print("Goal ", Goal, " achieved!");
+    goalAchieved(Goal)[artifact_id(ArtId)].
 
 /* Import behavior of agents that work in CArtAgO environments */
 { include("$jacamoJar/templates/common-cartago.asl") }

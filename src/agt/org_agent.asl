@@ -5,6 +5,13 @@ org_name("lab_monitoring_org"). // the agent beliefs that it can manage organiza
 group_name("monitoring_team"). // the agent beliefs that it can manage groups with the id "monitoring_team"
 sch_name("monitoring_scheme"). // the agent beliefs that it can manage schemes with the id "monitoring_scheme"
 
+// Rule to detect roles with insufficient players 
+insufficient_players(GroupId, Role) :-
+    specification(GroupSpec)[artifact_id(GroupId)] & 
+    role_cardinality(Role, Min, _, GroupSpec) &
+    .count(play(_, Role, GroupId), Actual) &
+    Actual < Min.
+
 /* Initial goals */
 !start. // the agent has the goal to start
 
@@ -16,34 +23,53 @@ sch_name("monitoring_scheme"). // the agent beliefs that it can manage schemes w
 */
 @start_plan
 +!start : org_name(OrgName) & group_name(GroupName) & sch_name(SchemeName) <-
-	.print("Initializing organization: ", OrgName);
+  .print("Initializing organization: ", OrgName);
   
-	createWorkspace(OrgName);
-	joinWorkspace(OrgName, OrgWsp);
-	
+  createWorkspace(OrgName);
+  joinWorkspace(OrgName, OrgWsp);
+  
   makeArtifact(OrgName, "ora4mas.nopl.OrgBoard", ["src/org/org-spec.xml"], OrgBoardId)[wid(OrgWsp)];
   focus(OrgBoardId)[wid(OrgWsp)];
   .print("Organization Board created with ID: ", OrgBoardId);
-	
-	createGroup(GroupName, "monitoring_team", GroupId)[artifact_id(OrgBoardId)];
-	focus(GroupId)[wid(OrgWsp)];
-	.print("Group Board created with ID: ", GroupId);
-	
-	createScheme(SchemeName, "monitoring_scheme", SchemeId)[artifact_id(OrgBoardId)];
-	focus(SchemeId)[wid(OrgWsp)];
-	.print("Scheme Board created with ID: ", SchemeId);
-	
-	.broadcast(tell, organization_ready(OrgName));
-	.print("Broadcasted that organization workspace ", OrgName, " is available");
-	
-	?formationStatus(ok)[artifact_id(GroupId)];
-	.print("Group ", GroupName, " is now well-formed");
-	
-	addResponsibleGroup(GroupName)[artifact_id(SchemeId)];
-	.print("Made group ", GroupName, " responsible for scheme ", SchemeName);
-	
-	!inspect(GroupId).
+  
+  createGroup(GroupName, "monitoring_team", GroupId)[artifact_id(OrgBoardId)];
+  focus(GroupId)[wid(OrgWsp)];
+  .print("Group Board created with ID: ", GroupId);
+  
+  createScheme(SchemeName, "monitoring_scheme", SchemeId)[artifact_id(OrgBoardId)];
+  focus(SchemeId)[wid(OrgWsp)];
+  .print("Scheme Board created with ID: ", SchemeId);
+  
+  .broadcast(tell, organization_ready(OrgName));
+  .print("Broadcasted that organization workspace ", OrgName, " is available");
+  
+  !check_missing_roles(GroupId);
+  
+  ?formationStatus(ok)[artifact_id(GroupId)];
+  .print("Group ", GroupName, " is now well-formed");
+  
+  addResponsibleGroup(GroupName)[artifact_id(SchemeId)];
+  .print("Made group ", GroupName, " responsible for scheme ", SchemeName);
+  
+  !inspect(GroupId).
 
+@check_missing_roles_plan
++!check_missing_roles(GroupId) : org_name(OrgName) & group_name(GroupName) <-
+  .print("Checking for roles with insufficient players...");
+  
+  // For each role with insufficient players broadcast role availability
+  for (insufficient_players(GroupId, Role)) {
+    .print("Role ", Role, " has insufficient players");
+    .broadcast(tell, role_available(Role, OrgName));
+    .print("Broadcasted availability of role ", Role, " in organization ", OrgName);
+  }
+  
+  .wait(10000); 
+  !check_missing_roles(GroupId).
+  
++formationStatus(ok)[artifact_id(GroupId)] <-
+  .print("Group is now well-formed. Stopping role availability broadcasts.").
+  
 /* 
  * Plan for reacting to the addition of the test-goal ?formationStatus(ok)
  * Triggering event: addition of goal ?formationStatus(ok)
